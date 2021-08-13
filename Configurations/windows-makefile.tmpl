@@ -314,7 +314,7 @@ PROCESSOR= {- $config{processor} -}
 {- dependmagic('build_programs'); -}: build_programs_nodep
 
 build_generated: $(GENERATED_MANDATORY)
-build_libs_nodep: $(LIBS) {- join(" ",map { shlib_import($_) } @{$unified_info{libraries}}) -}
+build_libs_nodep: libcrypto.pc libssl.pc openssl.pc $(LIBS) {- join(" ",map { shlib_import($_) } @{$unified_info{libraries}}) -}
 build_engines_nodep: $(ENGINES)
 build_programs_nodep: $(PROGRAMS) $(SCRIPTS)
 
@@ -367,7 +367,7 @@ clean: libclean
 	-del /Q /F $(SCRIPTS)
 	-del /Q /F $(GENERATED_MANDATORY)
 	-del /Q /F $(GENERATED)
-	-del /Q /S /F *.d *.obj *.pdb *.ilk *.manifest
+	-del /Q /S /F *.d *.obj *.pdb *.ilk *.manifest *.pc
 	-del /Q /S /F engines\*.lib engines\*.exp
 	-del /Q /S /F apps\*.lib apps\*.rc apps\*.res apps\*.exp
 	-del /Q /S /F test\*.exp
@@ -424,8 +424,16 @@ install_dev: install_runtime_libs
 				       "$(INSTALLTOP)\include\openssl"
 	@"$(PERL)" "$(SRCDIR)\util\mkdir-p.pl" "$(libdir)"
 	@"$(PERL)" "$(SRCDIR)\util\copy.pl" $(INSTALL_LIBS) "$(libdir)"
+	@"$(PERL)" "$(SRCDIR)\util\mkdir-p.pl" "$(DESTDIR)$(libdir)\pkgconfig"
+    @$(ECHO) "install libcrypto.pc -> $(DESTDIR)$(libdir)\pkgconfig\libcrypto.pc"
+    @"$(PERL)" "$(SRCDIR)\util\copy.pl" libcrypto.pc "$(DESTDIR)$(libdir)\pkgconfig"
+    @$(ECHO) "install libssl.pc -> $(DESTDIR)$(libdir)\pkgconfig/libssl.pc"
+    @"$(PERL)" "$(SRCDIR)\util\copy.pl" libssl.pc "$(DESTDIR)$(libdir)\pkgconfig"
+    @$(ECHO) "install openssl.pc -> $(DESTDIR)$(libdir)\pkgconfig\openssl.pc"
+    @"$(PERL)" "$(SRCDIR)\util\copy.pl" openssl.pc "$(DESTDIR)$(libdir)\pkgconfig"
 	@if "$(SHLIBS)"=="" \
 	 "$(PERL)" "$(SRCDIR)\util\copy.pl" ossl_static.pdb "$(libdir)"
+	@ : {- output_on() if $disabled{shared}; "" -}
 
 uninstall_dev:
 
@@ -472,6 +480,49 @@ install_html_docs:
 uninstall_html_docs:
 
 # Building targets ###################################################
+libcrypto.pc:
+    @( $(ECHO) "prefix=$(INSTALLTOP)" && \
+       $(ECHO) "exec_prefix=$${prefix}" && \
+       @( @if not "$(LIBDIR)"=="" ( $(ECHO) "libdir=$${exec_prefix}\$(LIBDIR)" ) && \
+          @if "$(LIBDIR)"=="" ( $(ECHO) "libdir=$(libdir)" ) ) && \
+       $(ECHO) "includedir=$${prefix}\include" && \
+       $(ECHO) "enginesdir=$${libdir}\engines-{- $sover_dirname -}" && \
+       $(ECHO) "" && \
+       $(ECHO) "Name: OpenSSL-libcrypto" && \
+       $(ECHO) "Description: OpenSSL cryptography library" && \
+       $(ECHO) "Version: $(VERSION)" && \
+       $(ECHO) "Libs: -L$${libdir} -lcrypto" && \
+       $(ECHO) "Libs.private: $(LIB_EX_LIBS)" && \
+       $(ECHO) "Cflags: -I$${includedir}" && \
+       $(ECHO) "" ) > libcrypto.pc
+
+libssl.pc:
+    @( $(ECHO) "prefix=$(INSTALLTOP)" && \
+       $(ECHO) "exec_prefix=$${prefix}" && \
+       @( @if not "$(LIBDIR)"=="" ( $(ECHO) "libdir=$${exec_prefix}\$(LIBDIR)" ) && \
+          @if "$(LIBDIR)"=="" ( $(ECHO) "libdir=$(libdir)" ) ) && \
+       $(ECHO) "includedir=$${prefix}\include" && \
+       $(ECHO) "" && \
+       $(ECHO) "Name: OpenSSL-libssl" && \
+       $(ECHO) "Description: Secure Sockets Layer and cryptography libraries" && \
+       $(ECHO) "Version: $(VERSION)" && \
+       $(ECHO) "Requires.private: libcrypto" && \
+       $(ECHO) "Libs: -L$${libdir} -lssl" && \
+       $(ECHO) "Cflags: -I$${includedir}" && \
+       $(ECHO) "" ) > libssl.pc
+
+openssl.pc:
+    @( $(ECHO) "prefix=$(INSTALLTOP)" && \
+       $(ECHO) "exec_prefix=$${prefix}" && \
+       @( @if not "$(LIBDIR)"=="" ( $(ECHO) "libdir=$${exec_prefix}\$(LIBDIR)" ) && \
+          @if "$(LIBDIR)"=="" ( $(ECHO) "libdir=$(libdir)" ) ) && \
+       $(ECHO) "includedir=$${prefix}\include" && \
+       $(ECHO) "" && \
+       $(ECHO) "Name: OpenSSL" && \
+       $(ECHO) "Description: Secure Sockets Layer and cryptography libraries and tools" && \
+       $(ECHO) "Version: $(VERSION)" && \
+       $(ECHO) "Requires: libssl libcrypto" && \
+       $(ECHO) "" ) > openssl.pc
 
 configdata.pm: "$(SRCDIR)\Configure" {- join(" ", map { '"'.$_.'"' } @{$config{build_file_templates}}, @{$config{build_infos}}, @{$config{conf_files}}) -}
 	@$(ECHO) "Detected changed: $?"
