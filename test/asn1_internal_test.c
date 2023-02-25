@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -109,45 +109,34 @@ static int test_standard_methods(void)
 
 /**********************************************************************
  *
- * Test of that i2d fail on non-existing non-optional items
+ * Regression test for issue where OBJ_nid2obj does not raise
+ * an error when a NID is not registered.
  *
  ***/
-
-#include <openssl/rsa.h>
-
-static int test_empty_nonoptional_content(void)
+static int test_nid2obj_nonexist(void)
 {
-    RSA *rsa = NULL;
-    BIGNUM *n = NULL;
-    BIGNUM *e = NULL;
-    int ok = 0;
+    ASN1_OBJECT *obj;
+    unsigned long err;
 
-    if (!TEST_ptr(rsa = RSA_new())
-        || !TEST_ptr(n = BN_new())
-        || !TEST_ptr(e = BN_new())
-        || !TEST_true(RSA_set0_key(rsa, n, e, NULL)))
-        goto end;
+    obj = OBJ_nid2obj(INT_MAX);
+    if (!TEST_true(obj == NULL))
+        return 0;
 
-    n = e = NULL;                /* They are now "owned" by |rsa| */
+    err = ERR_get_error();
 
-    /*
-     * This SHOULD fail, as we're trying to encode a public key as a private
-     * key.  The private key bits MUST be present for a proper RSAPrivateKey.
-     */
-    if (TEST_int_le(i2d_RSAPrivateKey(rsa, NULL), 0))
-        ok = 1;
+    if (!TEST_int_eq(ERR_GET_FUNC(err), OBJ_F_OBJ_NID2OBJ))
+        return 0;
 
- end:
-    RSA_free(rsa);
-    BN_free(n);
-    BN_free(e);
-    return ok;
+    if (!TEST_int_eq(ERR_GET_REASON(err), OBJ_R_UNKNOWN_NID))
+        return 0;
+
+    return 1;
 }
 
 int setup_tests(void)
 {
     ADD_TEST(test_tbl_standard);
     ADD_TEST(test_standard_methods);
-    ADD_TEST(test_empty_nonoptional_content);
+    ADD_TEST(test_nid2obj_nonexist);
     return 1;
 }

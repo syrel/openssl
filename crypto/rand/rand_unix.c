@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -33,9 +33,6 @@
 #endif
 #if defined(__OpenBSD__)
 # include <sys/param.h>
-#endif
-#if defined(__APPLE__)
-# include <CommonCrypto/CommonRandom.h>
 #endif
 
 #if defined(OPENSSL_SYS_UNIX) || defined(__DJGPP__)
@@ -381,7 +378,7 @@ static ssize_t syscall_random(void *buf, size_t buflen)
         if (errno != ENOSYS)
             return -1;
     }
-#  elif defined(__APPLE__)
+#  elif defined(OPENSSL_APPLE_CRYPTO_RANDOM)
     if (CCRandomGenerateBytes(buf, buflen) == kCCSuccess)
 	    return (ssize_t)buflen;
 
